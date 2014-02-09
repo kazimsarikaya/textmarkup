@@ -1,0 +1,322 @@
+options {
+    STATIC = false;
+    UNICODE_INPUT = true;
+    LOOKAHEAD = 3;
+    FORCE_LA_CHECK = true;
+    DEBUG_PARSER = true;
+}
+
+PARSER_BEGIN(TextMarkupParser)
+/*
+Text Markup Language
+Copryright © 2014 Kazım SARIKAYA
+
+This program is licensed under the terms of Sanal Diyar Software License. Please
+read the license file or visit http://license.sanaldiyar.com
+ */
+
+package com.sanaldiyar.projects.textmarkup.lang;
+
+import java.io.StringReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
+
+public class TextMarkupParser {
+
+    public static String parse(String data) throws ParseException {
+        TextMarkupParser parser=new TextMarkupParser(new StringReader(data));
+        return parser.HTML();
+    }
+
+    public static String parse(File input) throws ParseException,FileNotFoundException {
+        TextMarkupParser parser=new TextMarkupParser(new FileInputStream(input),"utf-8");
+        return parser.HTML();
+    }
+
+    public static String parse(InputStream is) throws ParseException {
+        TextMarkupParser parser=new TextMarkupParser(is,"utf-8");
+        return parser.HTML();
+    }
+
+}
+
+PARSER_END(TextMarkupParser)
+
+SKIP:{
+    "\r"
+}
+
+TOKEN:
+{
+     <LETTER:               ["A"-"Z","a"-"z","0"-"9","ğ","ü","ş","ı","ö","ç","Ğ","Ü","Ş","İ","Ö","Ç",
+                            ".",":","\"","!","^","+","%","&","/","(",")","=","?","-","_","<",">",",",";",
+                            "\t","$","\\","|","@","{","}"]>
+    |<LETTERS:              <LETTER>(<LETTER>)+ >
+    |<UNL:                  "*">
+    |<NL:                   "#">
+    |<NEWLINE:              "\n">
+}
+
+String HTML():
+{
+    String result = "",inner;
+}
+{
+    ( inner = LIST() { result += inner; } | inner = PARAGRAPH() { result += inner; } )+
+    {
+        return result;
+    }
+}
+
+String LIST():
+{
+    String result = "",inner;
+}
+{
+    ( inner = NUMBERED() { result += inner; } | inner = UNNUMBERED() { result += inner; } ) (<NEWLINE> | <EOF>)
+    {
+        return result;
+    }
+}
+
+String NUMBERED():
+{
+    String result = "<ol>";
+    String inner;
+}
+{
+    ( <NL> inner = LINE() { result += "<li>" + inner + "</li>"; } )+
+    {
+        return result + "</ol>\n";
+    }
+}
+
+String UNNUMBERED():
+{
+    String result = "<ul>";
+    String inner;
+}
+{
+    ( <UNL> inner = LINE() { result += "<li>" + inner + "</li>"; } )+ 
+    {
+        return result + "</ul>\n";
+    }
+}
+
+String PARAGRAPH():
+{
+    String result = "<p>";
+    String inner;
+}
+{
+    ( inner = LINE() { result += inner; } )+ ( <NEWLINE> | <EOF> )
+    {
+        return result + "</p>\n";
+    }
+}
+
+String LINE():
+{
+    String result = "";
+    String inner;
+}
+{
+    ( inner = CONTENT() { result += inner; } ( <NEWLINE> | <EOF> ) )
+    {
+        return result;
+    }    
+}
+
+String CONTENT():
+{
+    String result = "";
+    String inner;
+}
+{
+    ( inner = URL() { result += inner; } | inner = FORMATTEDTEXT() { result += inner; } | inner = TEXT() { result += inner; } )+
+    {
+        return result;
+    }
+}
+
+
+String URL():
+{
+    String result = "<a href=\"";
+    String inner;
+}
+{
+    "[" inner = URLTEXT() { result += inner + "\">"; } " " inner = URLTITLE() { result += inner; } "]"
+    {
+        return result + "</a>";
+    }
+}
+
+String FORMATTEDTEXT():
+{
+    String result = "";
+    String inner;
+}
+{
+    ( inner = FORMAT() { result += inner; } | inner = INFO() { result += inner; } )
+    {
+        return result;
+    }
+}
+
+String FORMAT():
+{
+    String result = "";
+    String inner;
+}
+{
+    ( inner = BOLDITALIC() { result += inner; } | inner = BOLD() { result += inner; } | inner = ITALIC() { result += inner; })
+    {
+        return result;
+    }
+}
+
+String BOLDITALIC():
+{
+    String result = "<b><i>";
+    String inner;
+}
+{
+    "'''''" inner = TEXT() { result += inner; } "'''''"
+    {
+        return result + "</i></b>";
+    }
+}
+
+String BOLD():
+{
+    String result = "<b>";
+    String inner;
+}
+{
+    "'''" inner = TEXT() { result += inner; } "'''"
+    {
+        return result + "</b>";
+    }
+}
+
+String ITALIC():
+{
+    String result = "<i>";
+    String inner;
+}
+{
+    "''" inner = TEXT() { result += inner; } "''"
+    {
+        return result + "</i>";
+    }
+}
+
+String INFO():
+{
+    String result = "";
+    String inner;
+}
+{
+    ( inner = WARNING() { result += inner; } | inner = DANGER() { result += inner; } )
+    {
+        return result;
+    }
+}
+
+String DANGER():
+{
+    String result = "<span class=\"text-danger\">";
+    String inner;
+}
+{
+    "~~~" inner = TEXT() { result += inner; } "~~~"
+    {
+        return result + "</span>";
+    }
+}
+
+String WARNING():
+{
+    String result = "<span class=\"text-warning\">";
+    String inner;
+}
+{
+    "~~" inner = TEXT() { result += inner; } "~~"
+    {
+        return result + "</span>";
+    }
+}
+
+String TEXT():
+{
+    String result="",inner;
+    Token token;
+}
+{
+    ( (inner = UNSPACIALTEXT() { result += inner; } (inner = SHARPORSTAR()  { result += inner; } )? ) | inner = SPECIALCHAR() { result += inner; } )+
+    {
+        return result;
+    }
+}
+
+String URLTITLE():
+{
+    String result="",inner;
+}
+{
+    ( inner = URLTEXT() { result += inner; } | " " { result += " "; } )+
+    {
+        return result;
+    }
+}
+
+String URLTEXT():
+{
+    String result="",inner;
+}
+{
+    ( inner = UNSPACIALTEXT() { result += inner; } ( ("~" { result += "~"; })?  inner = UNSPACIALTEXT() { result += inner; } )? )
+    {
+        return result;
+    }
+}
+
+String UNSPACIALTEXT():
+{
+    String result="";
+    Token inner;
+}
+{
+    ( inner = <LETTERS> { result += inner.image; } | inner = <LETTER> { result += inner.image; } )
+    {
+        return result;
+    }
+}
+
+
+String SHARPORSTAR():
+{
+    String result="",inner;
+}
+{
+    ( <NL> { result += "#"; } | <UNL> { result += "*"; } )
+    {
+        return result;
+    }
+}
+
+String SPECIALCHAR():
+{
+    String result="",inner;
+}
+{
+    ( " " { result += " "; } | "'" { result += "'"; } | "~" { result += "~"; } 
+    | "[" { result += "["; } | "]" { result += "]"; })
+    {
+        return result;
+    }
+}
+
