@@ -65,10 +65,18 @@ String HTML():
     String result = "",inner;
 }
 {
-    ( inner = LIST() { result += inner; } | inner = BLOCKQUOTE() { result += inner; } | inner = PARAGRAPH() { result += inner; } )+
+    ( ( inner = EMPTYLINE() { result += inner; } | inner = LIST() { result += inner; } | inner = BLOCKQUOTE() { result += inner; } | inner = PARAGRAPH() { result += inner; } )+ <EOF> | <EOF> )
     {
         return result;
     }
+}
+
+String EMPTYLINE():
+{
+    String result="";
+}
+{
+    <NEWLINE> { result = "<br/>\n"; return result; }
 }
 
 String LIST():
@@ -112,7 +120,7 @@ String BLOCKQUOTE():
     String inner;
 }
 {
-    ( <ABS> inner = LINE() { result += inner + "<br/>\n"; } )+ ( <NEWLINE> | <EOF> )
+    ( <ABS> (inner = LINE() { result += inner + "<br/>\n"; } | inner = EMPTYLINE() { result += inner; } ))+ ( <NEWLINE> | <EOF> )
     {
         return result + "</blockquote>\n";
     }
