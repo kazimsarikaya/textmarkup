@@ -25,6 +25,8 @@ Between ''''' '''''     : bold and italic
 Between ~~  ~~          : warning (bootstrap)
 Between ~~~  ~~~        : danger (bootstrap)
 
+BLOCKQUOTE:
+A block of lines is starting with > chars are parsed as blockquote
 
 Kazım SARIKAYA
 kazimsarikaya@sanaldiyar.com

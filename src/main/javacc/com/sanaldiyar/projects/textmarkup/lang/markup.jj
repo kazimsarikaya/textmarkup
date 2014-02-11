@@ -51,11 +51,12 @@ SKIP:{
 TOKEN:
 {
      <LETTER:               ["A"-"Z","a"-"z","0"-"9","ğ","ü","ş","ı","ö","ç","Ğ","Ü","Ş","İ","Ö","Ç",
-                            ".",":","\"","!","^","+","%","&","/","(",")","=","?","-","_","<",">",",",";",
+                            ".",":","\"","!","^","+","%","&","/","(",")","=","?","-","_","<",",",";",
                             "\t","$","\\","|","@","{","}"]>
     |<LETTERS:              <LETTER>(<LETTER>)+ >
     |<UNL:                  "*">
     |<NL:                   "#">
+    |<ABS:                  ">">
     |<NEWLINE:              "\n">
 }
 
@@ -64,7 +65,7 @@ String HTML():
     String result = "",inner;
 }
 {
-    ( inner = LIST() { result += inner; } | inner = PARAGRAPH() { result += inner; } )+
+    ( inner = LIST() { result += inner; } | inner = BLOCKQUOTE() { result += inner; } | inner = PARAGRAPH() { result += inner; } )+
     {
         return result;
     }
@@ -75,7 +76,7 @@ String LIST():
     String result = "",inner;
 }
 {
-    ( inner = NUMBERED() { result += inner; } | inner = UNNUMBERED() { result += inner; } ) (<NEWLINE> | <EOF>)
+    ( inner = NUMBERED() { result += inner; } | inner = UNNUMBERED() { result += inner; } ) ( <NEWLINE> | <EOF> )
     {
         return result;
     }
@@ -83,11 +84,11 @@ String LIST():
 
 String NUMBERED():
 {
-    String result = "<ol>";
+    String result = "<ol>\n";
     String inner;
 }
 {
-    ( <NL> inner = LINE() { result += "<li>" + inner + "</li>"; } )+
+    ( <NL> inner = LINE() { result += "<li>" + inner + "</li>\n"; } )+
     {
         return result + "</ol>\n";
     }
@@ -95,13 +96,25 @@ String NUMBERED():
 
 String UNNUMBERED():
 {
-    String result = "<ul>";
+    String result = "<ul>\n";
     String inner;
 }
 {
-    ( <UNL> inner = LINE() { result += "<li>" + inner + "</li>"; } )+ 
+    ( <UNL> inner = LINE() { result += "<li>" + inner + "</li>\n"; } )+ 
     {
         return result + "</ul>\n";
+    }
+}
+
+String BLOCKQUOTE():
+{
+    String result = "<blockquote>\n";
+    String inner;
+}
+{
+    ( <ABS> inner = LINE() { result += inner + "<br/>\n"; } )+ ( <NEWLINE> | <EOF> )
+    {
+        return result + "</blockquote>\n";
     }
 }
 
@@ -123,7 +136,7 @@ String LINE():
     String inner;
 }
 {
-    ( inner = CONTENT() { result += inner; } ( <NEWLINE> | <EOF> ) )
+    ( inner = CONTENT() { result += inner + "\n"; }  ( <NEWLINE> | <EOF> ) )
     {
         return result;
     }    
@@ -150,7 +163,7 @@ String URL():
 {
     "[" inner = URLTEXT() { result += inner + "\">"; } " " inner = URLTITLE() { result += inner; } "]"
     {
-        return result + "</a>";
+        return result + "</a> ";
     }
 }
 
@@ -186,7 +199,7 @@ String BOLDITALIC():
 {
     "'''''" inner = TEXT() { result += inner; } "'''''"
     {
-        return result + "</i></b>";
+        return result + "</i></b> ";
     }
 }
 
@@ -198,7 +211,7 @@ String BOLD():
 {
     "'''" inner = TEXT() { result += inner; } "'''"
     {
-        return result + "</b>";
+        return result + "</b> ";
     }
 }
 
@@ -210,7 +223,7 @@ String ITALIC():
 {
     "''" inner = TEXT() { result += inner; } "''"
     {
-        return result + "</i>";
+        return result + "</i> ";
     }
 }
 
@@ -234,7 +247,7 @@ String DANGER():
 {
     "~~~" inner = TEXT() { result += inner; } "~~~"
     {
-        return result + "</span>";
+        return result + "</span> ";
     }
 }
 
@@ -246,7 +259,7 @@ String WARNING():
 {
     "~~" inner = TEXT() { result += inner; } "~~"
     {
-        return result + "</span>";
+        return result + "</span> ";
     }
 }
 
@@ -256,7 +269,7 @@ String TEXT():
     Token token;
 }
 {
-    ( (inner = UNSPACIALTEXT() { result += inner; } (inner = SHARPORSTAR()  { result += inner; } )? ) | inner = SPECIALCHAR() { result += inner; } )+
+    ( (inner = UNSPACIALTEXT() { result += inner; } (inner = SPECIALSTART()  { result += inner; } )? ) | inner = SPECIALCHAR() { result += inner; } )+
     {
         return result;
     }
@@ -297,12 +310,12 @@ String UNSPACIALTEXT():
 }
 
 
-String SHARPORSTAR():
+String SPECIALSTART():
 {
     String result="",inner;
 }
 {
-    ( <NL> { result += "#"; } | <UNL> { result += "*"; } )
+    ( <NL> { result += "#"; } | <UNL> { result += "*"; } | <ABS> { result += ">"; } )
     {
         return result;
     }
